@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html ng-app="app">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,minimal-ui">
+		<meta name="format-detection" content="telephone=no">
+		<link rel="stylesheet" href="css/reset.css">
+			<link rel="stylesheet" type="text/css" href="css/main.css"/>
+	</head>
+<body>
+<div id="root" class="container">
+    
+    <div class="m-artical-action">
+        <div class="article-action-mid" id="action_mid"></div>
+    </div>
+    
+    <div id="top-nav" class="top-nav" style="display: none;">
+        <div class="icon-back"></div>
+        <div class="nav-title">返回书架</div>
+    </div>
+    <div id="ficicon_chapter_titile"></div>
+    
+    <div id="fiction_container" class="m-read-content">
+    	
+    </div> 
+    <div class="m-button-bar">
+        <ul class="u-tab">
+            <li id="prev_button">上一章</li>
+            <li id="next_button">下一章</li>
+           
+        </ul>
+    </div>
+    <div class="nav-pannel-bk font-contanier" style="display: none;"> </div>
+    <div id="font-contanier" class="nav-pannel font-contanier " style="display: none;">
+        <div class="child-mod">
+            <span>字号</span>
+            <button id="large-font" class="font-size-button">大</button>
+             <button id="small-font" class="font-size-button">小</button>
+        </div>
+        
+        <div class="child-mod">
+            <span>字体颜色</span>
+            <div class="bk-container">
+                <div class="bk-container-current" id="color1">   </div>
+            </div>
+             <div class="bk-container">
+                <div class="bk-container-current" id="color2">   </div>
+            </div>
+             <div class="bk-container">
+                <div class="bk-container-current" id="color3">   </div>
+                
+            </div>
+            <div class="bk-container">
+                <div class="bk-container-current" id="color4">   </div>
+                
+            </div>
+        </div>
+    </div>
+    <div class="bottom-nav-bk bottom-nav" style="display: none;"></div>
+    
+   <div class="bottom-nav" id="bottom-nav" style="display: none;" >
+       <div class="item menu_button" id="menu_button">
+           <div class="item-wrap">
+               <div class="icon-menu"></div>
+                 <div class="icon-txt">
+                   目录
+               </div>
+           </div>
+       </div>
+       
+           <div class="item" id="font-button">
+           <div class="item-wrap">
+               <div class="icon-ft" ></div>
+                 <div class="icon-txt">
+                                            字体
+               </div>
+           </div>
+       </div>
+       
+       
+       
+        <div class="item" id="night-button" >
+        <div class="item-wrap"  id="day-icon">
+            <div class="icon-day"></div>
+	            <div class="icon-txt">
+	                                      白天
+	            </div>
+        </div>
+        <div class="item-wrap" style="display:none" id="night_icon">
+            <div class="icon-night"></div>
+            <div class="icon-txt">
+                                        夜间
+            </div>
+        </div>
+    </div>
+   
+   </div>
+ </div> 		    
+	
+		<script src="lib/zepto.min.js"></script>
+		<script>
+			window.jQuery = $;
+		</script>
+		<script src="js/jquery.base64.js"></script>
+		<script src="js/jquery.jsonp.js"></script>
+
+		<script>
+
+
+    //封装Storage
+     (function(){
+	   var Util = (function(){
+		var prefix = 'html5_reader_';
+		
+		//本地保存
+		var StorageGetter = function(key){
+			return localStorage.getItem(prefix + key);
+		}
+		var StorageSetter = function(Key , val){
+			return localStorage.setItem(prefix + Key,val);
+		}
+		
+		
+		//获得JSON的数据
+		var getBSONP =function(url ,callback){
+			return $.jsonp({
+				
+				url : url,
+				cache: true,
+				//callback
+				callback:'duokan_fiction_chapter',
+				success : function(result){
+					var date = $.base64.decode(result);
+					var json = decodeURIComponent(escape(date));
+					callback(json);
+				}
+			})
+		}
+		return {
+			getBSONP:getBSONP,
+			StorageGetter:StorageGetter,
+			StorageSetter:StorageSetter
+		}	
+	})();
+	var Win = $(window);
+    var Doc = $(document);
+    var readerModel;
+    var readerUI;
+   
+    var RooterContainer = $('#fiction_container');
+    
+    //字体大小保存
+    var initFontSize = Util.StorageGetter('font_size');
+    initFontSize = parseInt(initFontSize);
+    if (!initFontSize) {
+    	initFontSize = 14;
+    }
+    RooterContainer.css('font-size',initFontSize);
+    
+    //字体颜色切换保存
+      var initColor = Util.StorageGetter('font_color');
+    if (!initColor) {
+    	initColor = '#fff';
+    }
+    RooterContainer.css('color',initColor);
+    
+    //背景颜色保存；
+    var initBgColor = Util.StorageGetter('font_bgcolor');
+    if (!initBgColor) {
+    	initBgColor = '#fedcdb';
+    }
+    RooterContainer.css('background-color',initBgColor);
+    //获取Dom节点
+	var Dom ={
+		top_nav :$('#top-nav'),
+		bottom_nav :$('.bottom-nav'),
+		night_day_switchButton :$('#night-button'),
+		font_container :$('.font-contanier'),
+		font_button: $('#font-button'),
+		font_colors: $('.bk-container-current'),
+	    day_icon : $('#day-icon'),
+	    night_icon :$('#night_icon')
+		
+	}
+	function main(){
+		//整个项目的入口函数；
+		 readerModel = ReaderModel();
+		  readerUI = ReaderBaseFrame(RooterContainer);
+		
+		readerModel.init(function(data){
+			readerUI(data);
+		});
+		
+		EventHanlder();
+	}
+	function ReaderModel(){
+		//todo 实现和阅读器相关的数据交互的方法；
+		var Chapter_id;
+		var ChapterTotal;
+		var init = function(UIcallback){
+			getFictionInfo(function(){
+				getCurChapterContent(Chapter_id,function(data){
+					//todo
+					UIcallback && UIcallback(data);
+				});		
+			})
+		}	
+		var getFictionInfo = function(callback){
+			$.get('data/chapter.json',function(data){
+				
+				//todo或得章节信息之后的回调
+				Chapter_id = Util.StorageGetter('last_chapter_id');
+				if (Chapter_id == null) {
+					Chapter_id = data.chapters[1].chapter_id;
+				}
+				ChapterTotal = data.chapters.length;
+				callback && callback();
+				
+			},'json');
+		}
+		//获得当前章节内容
+		var getCurChapterContent = function(chapter_id,callback){
+			$.get('data/data' + chapter_id + '.json',function(date){
+				if (date.result == 0) {
+					var url = date.jsonp;
+					Util.getBSONP(url , function(date){
+					
+						callback && callback(date);
+					});
+				  }
+			},'json')
+		}
+		
+		//翻看上一页
+		var prevChapter = function(UIcallback){
+			Chapter_id = parseInt(Chapter_id,10);
+			if (Chapter_id == 0) {
+				return;
+			}
+			Chapter_id -= 1;
+			getCurChapterContent(Chapter_id , UIcallback);
+			Util.StorageSetter('last_chapter_id',Chapter_id);
+			
+		}
+		//翻看下一页
+		var nextChapter = function(UIcallback){
+			Chapter_id = parseInt(Chapter_id,10);
+			if (Chapter_id == ChapterTotal) {
+				return;
+			}
+			Chapter_id += 1;
+			getCurChapterContent(Chapter_id , UIcallback);
+			Util.StorageSetter('last_chapter_id',Chapter_id);
+		}
+		return {
+			init : init,
+			prevChapter : prevChapter,
+			nextChapter : nextChapter
+		}
+	  }	
+	  
+	  
+	function ReaderBaseFrame(container){
+		//todo 熏染基本的ui结构
+		function paseChapterDate(jsonDate){
+			
+			var jsonObj = JSON.parse(jsonDate);
+			var  html = '<h4>' + jsonObj.t + '</h4>';
+			for (var i = 0; i < jsonObj.p.length; i++) {
+				html +="<p>" + jsonObj.p[i] + "</p>";
+			}
+			return html;
+		}
+		return function(date){
+			container.html(paseChapterDate(date));
+		}
+		
+				
+	}
+	
+	function EventHanlder(){
+		//交互事件绑定
+		$('#action_mid').click(function(){
+			if (Dom.top_nav.css('display') == 'none') {
+				Dom.top_nav.show();
+				Dom.bottom_nav.show();
+			} else{
+				Dom.top_nav.hide();
+				Dom.bottom_nav.hide();
+				Dom.font_container.hide();
+				Dom.font_button.removeClass('current');
+			}
+		});
+		//字体面板
+		Dom.font_button.click(function(){
+			
+			if (Dom.font_container.css('display') == 'none') {
+				Dom.font_container.show();
+				Dom.font_button.addClass('current');
+			} else{
+				Dom.font_container.hide();
+				Dom.font_button.removeClass('current');
+			}
+		});
+		
+		Dom.night_day_switchButton.click(function(){
+		 //todo 触发背景切换事件
+		   if (Dom.day_icon.css('display') == 'none') {
+		   	   initBgColor = '#fedcdb';
+                Dom.day_icon.show();
+                Dom.night_icon.hide();
+                RooterContainer.css('background-color',initBgColor);	
+                Util.StorageSetter('font_bgcolor',initBgColor)
+		   }else{
+		   	   initBgColor = '#9d9087';
+		   	    Dom.day_icon.hide();
+                Dom.night_icon.show();
+                RooterContainer.css('background-color',initBgColor);	
+                Util.StorageSetter('font_bgcolor',initBgColor)
+		   }
+		 
+		});
+		//放大字体
+		$('#large-font').click(function(){
+			if(initFontSize > 20){
+				return;
+			}
+			initFontSize += 1;
+			RooterContainer.css('font-size',initFontSize);
+			//本地保存；
+			Util.StorageSetter('font_size',initFontSize );
+		});
+		//缩小字体
+		$('#small-font').click(function(){
+			if(initFontSize < 12 ){
+				return;
+			}
+			initFontSize -= 1;
+			RooterContainer.css('font-size',initFontSize);
+			Util.StorageSetter('font_size',initFontSize );
+			
+		});
+		//字体颜色切换
+		$('#color1').click(function(){
+	        initColor = '#70a19f';	
+			RooterContainer.css('color','#70a19f');
+			Util.StorageSetter('font_color',initColor);
+		});
+		$('#color2').click(function(){
+	        initColor = '#228fbd';	
+			RooterContainer.css('color','#228fbd');
+			Util.StorageSetter('font_color',initColor);
+		});
+		$('#color3').click(function(){
+			initColor = '#6c4c49';	
+			RooterContainer.css('color','#6c4c49');
+			Util.StorageSetter('font_color',initColor);
+		});
+		$('#color4').click(function(){
+			initColor = '#de773f';	
+			RooterContainer.css('color','#de773f');
+			Util.StorageSetter('font_color',initColor);
+		});
+       
+		
+     //滚动条滑动上下导航栏隐藏
+	Win.scroll(function(){
+		Dom.top_nav.hide();
+		Dom.bottom_nav.hide();
+		Dom.font_container.hide();
+		Dom.font_button.removeClass('current');	
+	});
+		
+		//上下翻页事件绑定；
+    $('#prev_button').click(function(){
+    	//todo获得章节的翻页的数据 - ba数据拿出来渲染
+    	readerModel.prevChapter(function(data){
+    		readerUI(data);
+    		
+             });
+		  });	
+	$('#next_button').click(function(){
+    	readerModel.nextChapter(function(data){
+    		readerUI(data);
+    	});  	
+    });	
+		//考虑保存当前页面
+	
+	}
+	//相似完成其他的  点击目录页面
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	main();
+	
+})();
+
+
+
+		</script>
+	</body>
+</html>
